@@ -13,16 +13,24 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-use std::num::Float;
+use std::num::{
+	Float,
+	FloatMath};
+use std::f64;
 
+pub const A4_STEPS_FROM_0: i16 = 57;
+pub const C3_STEPS_FROM_A4: i16 = -21;
+
+#[deriving(Show)]
 pub struct Tone {
 	pub freq: f64,
-	pub amp: f64
+	amp: f64,
+	pub active: bool
 }
 
 impl Tone {
 	pub fn new(freq: f64) -> Tone {
-		Tone{freq: freq, amp: 0.0}
+		Tone{freq: freq, amp: 0.0, active: false}
 	}
 
 	pub fn amp(&self) -> f64 {
@@ -51,6 +59,18 @@ pub fn note_freq_from_a4(n: i16) -> f64 {
 }
 
 pub fn note_freq_from_0(n: u16) -> f64 {
-	let a4_steps_from_0 = 49;
-	note_freq_from_a4(n as i16 - a4_steps_from_0)
+	note_freq_from_a4(n as i16 - A4_STEPS_FROM_0)
+}
+
+pub fn generate_samples(bufsize: uint, sample_period: f64, played_samples: u64,
+	tones: &[Tone]) -> Vec<f32>
+{
+	Vec::from_fn(bufsize, |i| {
+		(tones.iter().fold(0.0, |sum, t| {
+			// Radians per sample
+			let rads = 2.0 * f64::consts::PI * t.freq * sample_period;
+			let v = rads * (i as u64 + played_samples + 1) as f64;
+			v.sin() * t.amp() + sum
+		}) / tones.len() as f64 * 4.0) as f32
+	})
 }

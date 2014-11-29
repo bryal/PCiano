@@ -13,13 +13,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-extern crate time;
 extern crate current;
 extern crate shader_version;
 extern crate input;
 extern crate event;
 extern crate sdl2;
 extern crate sdl2_window;
+extern crate audio_stream;
 
 use std::cell::RefCell;
 use std::rt;
@@ -27,9 +27,9 @@ use sdl2_window::Sdl2Window;
 // use glfw_window::GlfwWindow;
 use current::Set;
 use input::{
-	keyboard,
 	Keyboard,
 	Mouse};
+use input::keyboard as kbd;
 use event::{
 	Events,
 	// FocusEvent,
@@ -48,15 +48,30 @@ use event::window::{
 	CaptureCursor,
 	Ups,
 	MaxFps};
-use audio_pa as audio;
+use audio_stream as audio;
 use music::Tone;
 
-mod audio_pa;
 mod music;
 
 fn max<T: PartialOrd>(a: T, b: T) -> T {
 	if a > b { a }
 	else { b }
+}
+
+fn change_tones_vol(tones: &mut [Tone], val: f64) -> &mut [Tone] {
+	for i in range(0, tones.len()) {
+		tones[i].change_amp(val);
+	}
+	tones
+}
+
+fn max_active_tones(tones: &mut [Tone]) -> &mut [Tone] {
+	for i in range(0, tones.len()) {
+		if tones[i].active {
+			tones[i].set_amp(1.0);
+		}
+	}
+	tones
 }
 
 // We need to run on the main thread, so ensure we are using the `native` runtime. This is
@@ -67,9 +82,31 @@ fn start(argc: int, argv: *const *const u8) -> int {
 }
 
 fn main() {
-	let tones = Vec::from_fn(36, |n| {
-		Tone::new(music::note_freq_from_0(n as u16))
+	let mut tones = Vec::from_fn(36, |n| {
+		Tone::new(music::note_freq_from_a4(n as i16 + music::C3_STEPS_FROM_A4))
 	});
+	for t in tones.iter() {
+		println!("{}", t);
+	}
+
+	let keys = [
+		kbd::A,
+			kbd::W,
+		kbd::S,
+			kbd::E,
+		kbd::D,
+		kbd::F,
+			kbd::T,
+		kbd::G,
+			kbd::Y,
+		kbd::H,
+			kbd::U,
+		kbd::J,
+		kbd::K,
+			kbd::O,
+		kbd::L,
+	];
+	audio::initialize();
 	println!("{}", audio::version_text());
 
 	let (t_sndstream, r_sndstream) = sync_channel(0);
@@ -91,41 +128,35 @@ fn main() {
 	let mut capture_cursor = true;
 	window.set_mut(CaptureCursor(capture_cursor));
 
-	let mut a_tone = Tone{ freq: 392.0, amp: 0.0 };
-	let mut s_tone = Tone{ freq: 440.0, amp: 0.0 };
-	let mut d_tone = Tone{ freq: 493.88, amp: 0.0 };
-	let sample_period = 1.0 / audio::default_sample_rate() as f64;
+	let sample_period = 1.0 / audio::default_sample_rate().unwrap();
 	let mut played_samples = 0_u64;
 	let (max_fps, ups) = (60, 120);
 	let dt = 1.0 / ups as f64;
-	let samples_per_upd = (dt / sample_period) as uint + 2;
+	let samples_per_upd = ((dt / sample_period) * 1.05) as uint;
 
 	let window = RefCell::new(window);
 	for e in Events::new(&window).set(Ups(ups)).set(MaxFps(max_fps)) {
 		e.press(|button| {
 			match button {
 				Keyboard(key) => {
-					match key {
-						keyboard::F12 => {
-							capture_cursor = !capture_cursor;
-							window.borrow_mut().deref_mut()
-								.set_mut(CaptureCursor(capture_cursor));
-						}, keyboard::A => {
-							a_tone.amp = 1.0;
-						}, keyboard::D => {
-							d_tone.amp = 1.0;
-						}, keyboard::S => {
-							s_tone.amp = 1.0;
-						}, _ => ()
+					if key == kbd::F12 {
+						capture_cursor = !capture_cursor;
+						window.borrow_mut().deref_mut()
+							.set_mut(CaptureCursor(capture_cursor));
+					} else if keys.contains(&key) {
+						tones[keys.position_elem(&key).unwrap() + 12].active = true;
 					}
-					println!("{}", key > keyboard::F);
 				}
 				Mouse(_) => (),
 			}
 		});
 		e.release(|button| {
 			match button {
-				Keyboard(_) => (),
+				Keyboard(key) => {
+					if keys.contains(&key) {
+						tones[keys.position_elem(&key).unwrap() + 12].active = false;
+					}
+				},
 				Mouse(_) => (),
 			}
 		});
@@ -134,13 +165,12 @@ fn main() {
 		// e.mouse_relative(|dx, dy| println!("Relative mouse moved '{} {}'", dx, dy));
 		e.render(|_| {});
 		e.update(|_| {
-			a_tone.change_amp(-2.0 * dt);
-			d_tone.change_amp(-2.0 * dt);
-			s_tone.change_amp(-2.0 * dt);
+			change_tones_vol(tones.as_mut_slice(), -4.5 * dt);
+			max_active_tones(tones.as_mut_slice());
 
-			let samples = audio::generate_samples(
+			let samples = music::generate_samples(
 				samples_per_upd as uint, sample_period,
-				played_samples, &[a_tone,d_tone,s_tone]
+				played_samples, tones.as_slice()
 			);
 			played_samples += samples_per_upd as u64;
 

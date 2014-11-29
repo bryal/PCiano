@@ -8,12 +8,8 @@ authors = ["bryal <96.bryal@gmail.com>"]
 name = "PCiano"
 path = "src/main.rs"
 
-[dependencies]
-portaudio = "~0.3.0"
-time = "*"
-
-[dependencies.graphics]
-git = "https://github.com/pistondevelopers/rust-graphics"
+[dependencies.audio_stream]
+git = "https://github.com/bryal/audio_stream-rs"
 
 [dependencies.event]
 git = "https://github.com/PistonDevelopers/event"
