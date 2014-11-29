@@ -10,6 +10,7 @@ path = "src/main.rs"
 
 [dependencies]
 portaudio = "~0.3.0"
+time = "*"
 
 [dependencies.graphics]
 git = "https://github.com/pistondevelopers/rust-graphics"
