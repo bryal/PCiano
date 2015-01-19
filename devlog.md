@@ -1,0 +1,5 @@
+- Ett problem jag stötte på innan jag ens börjat arbeta var att det inte fanns några bibliotek till Rust för att enkelt spela upp ljud. Efter att ha sökt ett tag slutade det med att jag skrev ett eget lib för att skriva ljudbuffrar till högtalaren baserat på portaudio.
+
+- Ett återkommande problem under arbetetd gång har varit att hålla all kod uppdaterad och fungerande. Detta har varit ett problem därför att Rust ännu är ett nytt språk och därför ofta ändras.
+
+- Ett problem jag hade var att hitta en funktion som kan generera komposita sinusvågor som låter som verkliga instrument. Efter att ha anlyserat en ljudvåg från en gitarr i audacity kom jag fram till att jag med enbart sammansatta sinusvågor inte skulle kunna återska klangen från ett verkligt instrument. Jag nöjde mej med att generera vågor som bara var något mer triangulära en en enkel sinusvåg.
